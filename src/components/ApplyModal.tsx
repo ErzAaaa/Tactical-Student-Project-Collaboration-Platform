@@ -6,7 +6,7 @@ import { dataClient } from "@/lib/data";
 import type { Application, Profile, Role } from "@/lib/types";
 import { Dialog } from "./ui/Dialog";
 import { PoWLevelBadge } from "./ui/StatusBadge";
-import { Button, Chip, Textarea } from "./ui/primitives";
+import { Button, Chip, Input, Textarea } from "./ui/primitives";
 import { useToast } from "./ui/Toast";
 
 interface ApplyModalProps {
@@ -28,6 +28,7 @@ export function ApplyModal({
 }: ApplyModalProps) {
   const { showToast } = useToast();
   const [pitch, setPitch] = useState("");
+  const [githubRepoLink, setGithubRepoLink] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submittedApp, setSubmittedApp] = useState<Application | null>(null);
@@ -35,11 +36,12 @@ export function ApplyModal({
   useEffect(() => {
     if (open) {
       setPitch("");
+      setGithubRepoLink(applicant.powItems[0]?.url ?? "");
       setError(null);
       setSubmitting(false);
       setSubmittedApp(null);
     }
-  }, [open, role?.id]);
+  }, [open, role?.id, applicant.powItems]);
 
   if (!role) return null;
 
@@ -61,6 +63,7 @@ export function ApplyModal({
       const app = await dataClient.createApplication({
         roleId: role.id,
         pitch: trimmed,
+        githubRepoLink: githubRepoLink.trim() || null,
       });
       setSubmittedApp(app);
       onApplied(app);
@@ -129,6 +132,17 @@ export function ApplyModal({
           error={error ?? undefined}
           required
         />
+
+        {dataClient.mode === "supabase" ? (
+          <Input
+            label="GitHub repository link (optional)"
+            type="url"
+            placeholder="https://github.com/username/project"
+            value={githubRepoLink}
+            onChange={(e) => setGithubRepoLink(e.target.value)}
+            hint="Attached as proof-of-work for the project creator"
+          />
+        ) : null}
 
         {/* Profile Snapshot Preview */}
         <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-3.5">

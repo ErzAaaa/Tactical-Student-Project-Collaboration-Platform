@@ -354,6 +354,28 @@ export class MockDataClient implements DataClient {
     return app;
   }
 
+  async withdrawApplication(input: {
+    id: string;
+    reason?: string;
+  }): Promise<Application> {
+    const store = readStore();
+    const currentUser =
+      store.users.find((u) => u.id === store.currentUserId) ?? store.users[0];
+    const appIndex = store.applications.findIndex(
+      (a) => a.id === input.id && a.applicantId === currentUser.id
+    );
+    if (appIndex === -1) {
+      throw new Error("Application not found");
+    }
+    const app = store.applications[appIndex];
+    app.status = "withdrawn";
+    app.declineNote = input.reason?.trim() || null;
+    app.decidedAt = new Date().toISOString();
+    store.applications[appIndex] = app;
+    writeStore(store);
+    return app;
+  }
+
   async listMyApplications(): Promise<MyApplicationItem[]> {
     const store = readStore();
     const currentUser =

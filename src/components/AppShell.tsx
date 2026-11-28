@@ -3,19 +3,42 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Compass, FileCheck2, FolderPlus, RotateCcw, Users } from "lucide-react";
+import {
+  Compass,
+  FileCheck2,
+  FolderPlus,
+  Github,
+  LogOut,
+  RotateCcw,
+  Users,
+} from "lucide-react";
+import { dataClient } from "@/lib/data";
+import { signInWithGitHub, signOut } from "@/lib/auth-actions";
 import { useDemo } from "./DemoContext";
 import { useToast } from "./ui/Toast";
 import { Button, cn } from "./ui/primitives";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { currentUser, demoUsers, switchUser, resetDemo } = useDemo();
+  const { currentUser, demoUsers, loadingUser, switchUser, resetDemo } =
+    useDemo();
   const { showToast } = useToast();
+  const isMock = dataClient.mode === "mock";
 
   const handleReset = async () => {
     await resetDemo();
     showToast("Demo data reset to initial seed.", "info");
+  };
+
+  const handleSignIn = async () => {
+    try {
+      await signInWithGitHub();
+    } catch (err) {
+      showToast(
+        err instanceof Error ? err.message : "Failed to start GitHub sign-in.",
+        "error"
+      );
+    }
   };
 
   const navItems = [
@@ -29,8 +52,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* Permanent Honesty Ribbon (PRD Section 7) */}
       <div className="bg-slate-900 px-4 py-1.5 text-center text-xs font-medium text-slate-100">
         <span className="inline-flex items-center gap-2">
-          <span className="inline-block h-2 w-2 rounded-full bg-amber-400" />
-          Demo build · synthetic data · Reliability scores & auto-close timers are simulated
+          <span
+            className={cn(
+              "inline-block h-2 w-2 rounded-full",
+              isMock ? "bg-amber-400" : "bg-emerald-400"
+            )}
+          />
+          {isMock
+            ? "Demo build · synthetic data · Reliability scores & auto-close timers are simulated"
+            : "Live backend · Supabase + GitHub OAuth"}
         </span>
       </div>
 
@@ -76,43 +106,68 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </nav>
           </div>
 
-          {/* Demo User Switcher & Reset */}
+          {/* Auth / Demo User Switcher */}
           <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-900">
-              <Users className="h-3.5 w-3.5" aria-hidden="true" />
-              Demo mode
-            </span>
+            {isMock ? (
+              <>
+                <span className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-900">
+                  <Users className="h-3.5 w-3.5" aria-hidden="true" />
+                  Demo mode
+                </span>
 
-            {demoUsers.length > 0 && currentUser ? (
-              <label className="sr-only" htmlFor="demo-user-select">
-                Switch demo account
-              </label>
-            ) : null}
-            {demoUsers.length > 0 && currentUser ? (
-              <select
-                id="demo-user-select"
-                value={currentUser.id}
-                onChange={(e) => void switchUser(e.target.value)}
-                className="rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-800"
-                aria-label="Switch demo account"
-              >
-                {demoUsers.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.demoRoleLabel}
-                  </option>
-                ))}
-              </select>
-            ) : null}
+                {demoUsers.length > 0 && currentUser ? (
+                  <>
+                    <label className="sr-only" htmlFor="demo-user-select">
+                      Switch demo account
+                    </label>
+                    <select
+                      id="demo-user-select"
+                      value={currentUser.id}
+                      onChange={(e) => void switchUser(e.target.value)}
+                      className="rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-800"
+                      aria-label="Switch demo account"
+                    >
+                      {demoUsers.map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.demoRoleLabel}
+                        </option>
+                      ))}
+                    </select>
+                  </>
+                ) : null}
 
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => void handleReset()}
-              title="Reset localStorage to initial demo seed"
-            >
-              <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
-              <span className="hidden sm:inline">Reset demo data</span>
-            </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => void handleReset()}
+                  title="Reset localStorage to initial demo seed"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+                  <span className="hidden sm:inline">Reset demo data</span>
+                </Button>
+              </>
+            ) : loadingUser ? (
+              <span className="text-xs text-slate-500">Checking session...</span>
+            ) : currentUser ? (
+              <>
+                <span className="text-xs font-medium text-slate-700">
+                  {currentUser.name}
+                </span>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => void signOut()}
+                >
+                  <LogOut className="h-3.5 w-3.5" aria-hidden="true" />
+                  Sign out
+                </Button>
+              </>
+            ) : (
+              <Button size="sm" onClick={() => void handleSignIn()}>
+                <Github className="h-3.5 w-3.5" aria-hidden="true" />
+                Sign in with GitHub
+              </Button>
+            )}
           </div>
         </div>
       </header>

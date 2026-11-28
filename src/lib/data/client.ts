@@ -12,7 +12,7 @@ import type {
 
 export interface DataClient {
   readonly mode: "mock" | "supabase";
-  getCurrentUser(): Promise<Profile>;
+  getCurrentUser(): Promise<Profile | null>;
   listDemoUsers?(): Promise<Profile[]>;
   switchDemoUser?(userId: string): Promise<Profile>;
   listProjects(filters?: ProjectFilters): Promise<ProjectWithCreator[]>;
@@ -21,9 +21,14 @@ export interface DataClient {
   createApplication(input: {
     roleId: string;
     pitch: string;
+    githubRepoLink?: string | null;
   }): Promise<Application>;
   listApplications(projectId: string): Promise<ApplicationWithApplicant[]>;
   updateApplication(input: UpdateApplicationInput): Promise<Application>;
+  withdrawApplication?(input: {
+    id: string;
+    reason?: string;
+  }): Promise<Application>;
   listMyApplications(): Promise<MyApplicationItem[]>;
   getMatchInsight(applicationId: string): Promise<MatchInsight | null>;
   resetDemoData?(): Promise<void>;

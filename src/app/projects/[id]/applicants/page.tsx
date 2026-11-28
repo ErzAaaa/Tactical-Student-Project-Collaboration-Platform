@@ -346,6 +346,7 @@ export default function ApplicantsDecisionPage() {
                   const isFinal =
                     app.status === "accepted" ||
                     app.status === "declined" ||
+                    app.status === "withdrawn" ||
                     app.status === "expired";
                   const daysDue = getDaysUntilDue(app.decisionDueAt);
                   const rel = app.applicant.reliability;

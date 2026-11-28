@@ -86,6 +86,11 @@ export function ApplicationStatusBadge({
       icon: <XCircle className="h-3.5 w-3.5" aria-hidden="true" />,
       classes: "bg-rose-50 text-rose-800 border-rose-200",
     },
+    withdrawn: {
+      label: "Withdrawn",
+      icon: <XCircle className="h-3.5 w-3.5" aria-hidden="true" />,
+      classes: "bg-slate-100 text-slate-700 border-slate-300",
+    },
     expired: {
       label: "Auto-closed (no decision)",
       icon: <TimerOff className="h-3.5 w-3.5" aria-hidden="true" />,

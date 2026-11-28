@@ -5,20 +5,29 @@ import Link from "next/link";
 import { dataClient } from "@/lib/data";
 import type { MyApplicationItem } from "@/lib/types";
 import { useDemo } from "@/components/DemoContext";
+import { useToast } from "@/components/ui/Toast";
+import { Dialog } from "@/components/ui/Dialog";
 import {
   Button,
   Card,
   EmptyState,
   ErrorState,
   Skeleton,
+  Textarea,
 } from "@/components/ui/primitives";
 import { ApplicationStatusBadge } from "@/components/ui/StatusBadge";
 
 export default function MyApplicationsPage() {
-  const { currentUser, dataVersion } = useDemo();
+  const { currentUser, dataVersion, bumpDataVersion } = useDemo();
+  const { showToast } = useToast();
   const [items, setItems] = useState<MyApplicationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [withdrawTarget, setWithdrawTarget] =
+    useState<MyApplicationItem | null>(null);
+  const [withdrawReason, setWithdrawReason] = useState("");
+  const [withdrawing, setWithdrawing] = useState(false);
 
   const loadMyApps = useCallback(async () => {
     setLoading(true);
@@ -38,6 +47,29 @@ export default function MyApplicationsPage() {
   useEffect(() => {
     void loadMyApps();
   }, [loadMyApps]);
+
+  const handleWithdraw = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!withdrawTarget || !dataClient.withdrawApplication) return;
+    setWithdrawing(true);
+    try {
+      await dataClient.withdrawApplication({
+        id: withdrawTarget.id,
+        reason: withdrawReason.trim() || undefined,
+      });
+      showToast("Application withdrawn.", "info");
+      setWithdrawTarget(null);
+      setWithdrawReason("");
+      bumpDataVersion();
+    } catch (err) {
+      showToast(
+        err instanceof Error ? err.message : "Failed to withdraw application.",
+        "error"
+      );
+    } finally {
+      setWithdrawing(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -77,46 +109,103 @@ export default function MyApplicationsPage() {
         />
       ) : (
         <div className="space-y-4">
-          {items.map((item) => (
-            <Card key={item.id} className="space-y-3 p-5">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <Link
-                    href={`/projects/${item.project.id}`}
-                    className="text-base font-semibold text-slate-900 hover:text-blue-700"
-                  >
-                    {item.project.title}
-                  </Link>
-                  <p className="text-xs text-slate-600">
-                    Role: <span className="font-medium">{item.role.name}</span> ·
-                    Creator: {item.project.creator.name} · Applied{" "}
-                    {new Date(item.createdAt).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                    })}
-                  </p>
-                </div>
-                <ApplicationStatusBadge status={item.status} />
-              </div>
+          {items.map((item) => {
+            const canWithdraw =
+              (item.status === "pending" || item.status === "shortlisted") &&
+              Boolean(dataClient.withdrawApplication);
 
-              <p className="rounded-lg bg-slate-50 p-3 text-xs text-slate-700">
-                <span className="font-medium text-slate-900">Your pitch:</span>{" "}
-                {item.pitch}
-              </p>
-
-              {item.status === "declined" && item.declineTemplate ? (
-                <div className="rounded-lg border border-rose-200 bg-rose-50/70 p-3 text-xs text-rose-950">
-                  <p className="font-semibold">Courteous feedback from creator:</p>
-                  <p className="mt-1">{item.declineTemplate}</p>
-                  {item.declineNote ? (
-                    <p className="mt-1 italic">“{item.declineNote}”</p>
-                  ) : null}
+            return (
+              <Card key={item.id} className="space-y-3 p-5">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <Link
+                      href={`/projects/${item.project.id}`}
+                      className="text-base font-semibold text-slate-900 hover:text-blue-700"
+                    >
+                      {item.project.title}
+                    </Link>
+                    <p className="text-xs text-slate-600">
+                      Role: <span className="font-medium">{item.role.name}</span>{" "}
+                      · Creator: {item.project.creator.name} · Applied{" "}
+                      {new Date(item.createdAt).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </p>
+                  </div>
+                  <ApplicationStatusBadge status={item.status} />
                 </div>
-              ) : null}
-            </Card>
-          ))}
+
+                <p className="rounded-lg bg-slate-50 p-3 text-xs text-slate-700">
+                  <span className="font-medium text-slate-900">Your pitch:</span>{" "}
+                  {item.pitch}
+                </p>
+
+                {item.status === "declined" && item.declineTemplate ? (
+                  <div className="rounded-lg border border-rose-200 bg-rose-50/70 p-3 text-xs text-rose-950">
+                    <p className="font-semibold">
+                      Courteous feedback from creator:
+                    </p>
+                    <p className="mt-1">{item.declineTemplate}</p>
+                    {item.declineNote ? (
+                      <p className="mt-1 italic">“{item.declineNote}”</p>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                {canWithdraw ? (
+                  <div className="flex justify-end pt-1">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => {
+                        setWithdrawTarget(item);
+                        setWithdrawReason("");
+                      }}
+                    >
+                      Withdraw application
+                    </Button>
+                  </div>
+                ) : null}
+              </Card>
+            );
+          })}
         </div>
       )}
+
+      <Dialog
+        open={Boolean(withdrawTarget)}
+        onClose={() => setWithdrawTarget(null)}
+        title="Withdraw application"
+        description={
+          withdrawTarget
+            ? `Withdraw your application for ${withdrawTarget.project.title}?`
+            : undefined
+        }
+      >
+        <form onSubmit={(e) => void handleWithdraw(e)} className="space-y-4">
+          <Textarea
+            label="Reason for withdrawing (optional)"
+            placeholder="Let the creator know if your schedule changed..."
+            rows={3}
+            maxLength={200}
+            value={withdrawReason}
+            onChange={(e) => setWithdrawReason(e.target.value)}
+          />
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setWithdrawTarget(null)}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" variant="danger" disabled={withdrawing}>
+              {withdrawing ? "Withdrawing..." : "Confirm withdraw"}
+            </Button>
+          </div>
+        </form>
+      </Dialog>
     </div>
   );
 }

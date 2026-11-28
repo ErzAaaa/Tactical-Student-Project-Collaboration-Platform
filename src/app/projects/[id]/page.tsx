@@ -14,6 +14,7 @@ import {
 import { dataClient } from "@/lib/data";
 import type { ProjectWithCreator, Role } from "@/lib/types";
 import { useDemo } from "@/components/DemoContext";
+import { signInWithGitHub } from "@/lib/auth-actions";
 import { ApplyModal } from "@/components/ApplyModal";
 import {
   Button,
@@ -208,6 +209,14 @@ export default function ProjectDetailPage() {
                         <Button variant="secondary" size="sm" disabled>
                           <Check className="h-4 w-4" aria-hidden="true" />
                           Applied
+                        </Button>
+                      ) : !currentUser && dataClient.mode === "supabase" ? (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => void signInWithGitHub()}
+                        >
+                          Sign in to apply
                         </Button>
                       ) : (
                         <Button

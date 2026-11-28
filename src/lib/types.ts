@@ -62,6 +62,7 @@ export type ApplicationStatus =
   | "shortlisted"
   | "accepted"
   | "declined"
+  | "withdrawn"
   | "expired";
 
 export type DeclineTemplate =
